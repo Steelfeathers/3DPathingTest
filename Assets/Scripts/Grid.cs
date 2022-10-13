@@ -1,93 +1,87 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace UnknownWorldsTest
 {
-    public class Grid
+    public class Grid : ScriptableObject
     {
-        private int cols;
-        private int rows;
-        private float cellSize;
-        private Vector3 gridOrigin;
-        private GridCell[,] gridCells;
+        [SerializeField]private int cols;
+        [SerializeField] private int rows;
+        [SerializeField] private float cellSize;
+        [SerializeField] private Vector3 origin;
+        [SerializeField] private GridCell[,] gridCells;
 
+        [SerializeField]private Vector3[,] gridVertices;
         public GridCell[,] GridCells => gridCells;
+        public Vector3 Origin => origin;
 
-        public Grid(Vector3 _gridOrigin, int _cols, int _rows, float _cellSize)
+        public void Initialize(Vector3 origin, int _cols, int _rows, float _cellSize)
         {
             cols = _cols;
             rows = _rows;
             cellSize = _cellSize;
-            gridOrigin = _gridOrigin;
+            origin = origin;
             gridCells = new GridCell[cols, rows];
 
+            gridVertices = new Vector3[cols, rows];
+
+            //Set the default value of all grid vertices. If no ground is found under that vertex, it counts as a hole in space
+            //This system is intended to be able to handle "floating island" type map with multiple interconnected walkable areas of various shapes and levels
+            //EDGE-CASE: A hole in the map that can fit within the size of 1 cell, but that will likely be readily visible to the level designer
             for (int i = 0; i < cols; i++)
             {
                 for (int j = 0; j < rows; j++)
                 {
-                    float x = (i * cellSize) + gridOrigin.x;
-                    float z = (j * cellSize) + gridOrigin.z;
-                    gridCells[i, j] = new GridCell(new Vector3(x, gridOrigin.y, z), cellSize);
+                    gridVertices[i,j] = Vector3.negativeInfinity;
                 }
             }
         }
+
+        public void AddGridVertex(int colIndex, int rowIndex, Vector3 vertex)
+        {
+            gridVertices[colIndex, rowIndex] = vertex;
+        }
+
+        public void CreateCellsFromVertices()
+        {
+            //Step through all of the vertex points that form the walkable surface of the map and parse them out into quad cells for pathfinding
+            for (int i = 0; i < cols-1; i++)
+            {
+                for (int j = 0; j < rows-1; j++)
+                {
+                    Vector3 LL = gridVertices[i, j];
+                    Vector3 UL = gridVertices[i, j + 1];
+                    Vector3 UR = gridVertices[i + 1, j + 1];
+                    Vector3 LR = gridVertices[i + 1, j];
+                    
+                    //If all 4 vertices match up to a real point on the ground (not just a hole in space), then make a cell 
+                    float defaultVal = Vector3.negativeInfinity.y;
+                    if (LL.y > defaultVal && UL.y > defaultVal && UR.y > defaultVal && LR.y > defaultVal)
+                    {
+                        gridCells[i, j] = new GridCell(LL, UL, UR, LR);
+                    }
+                }
+            }
+        }
+
 
         /// <summary>
         /// Display the grid at runtime in the editor. Gizmos must be turned on for the grid to be visible.
         /// </summary>
-        public void DebugDrawGrid(float displayTime=5f)
+        public void DebugDrawGrid()
         {
             for (int i = 0; i < cols; i++)
             {
                 for (int j = 0; j < rows; j++)
                 {
-                    Vector3 startPos = gridCells[i, j].Origin;
-                    Vector3 endPosR = startPos + (Vector3.right * cellSize);
-                    Vector3 endPosUp = startPos + (Vector3.forward * cellSize);
-
-                    if (gridCells[i, j].Walkable)
-                    {
-                        Debug.DrawLine(startPos, endPosR, Color.white, displayTime);
-                        Debug.DrawLine(startPos, endPosUp, Color.white, displayTime);
-                    }
-                    else
-                    {
-                        Debug.DrawLine(startPos, endPosR, Color.red, displayTime);
-                        Debug.DrawLine(startPos, endPosUp, Color.red, displayTime);
-                    }
-                    
+                    if (gridCells[i, j] == null) continue;
+                    gridCells[i, j].DebugDrawCell();
                 }
             }
-            
-            Debug.DrawLine(
-                new Vector3(gridOrigin.x + (cellSize * cols), gridOrigin.y, gridOrigin.z), 
-                new Vector3(gridOrigin.x + (cellSize * cols), gridOrigin.y, gridOrigin.z + (cellSize * rows)), 
-                Color.white, displayTime);
-            
-            Debug.DrawLine(
-                new Vector3(gridOrigin.x, gridOrigin.y, gridOrigin.z + (cellSize * rows)), 
-                new Vector3(gridOrigin.x + (cellSize * cols), gridOrigin.y, gridOrigin.z + (cellSize * rows)), 
-                Color.white, displayTime);
         }
     }
 
-    public class GridCell
-    {
-        private Vector3 origin; //Bottom left corner on an XZ top-down grid
-        private float size; //Width/height 
-        private Vector3 center;
-        private Vector3[] vertices;
-
-        public Vector3 Origin => origin;
-        public bool Walkable = true;
-        public Vector3 Center => center;
-
-        public GridCell(Vector3 _origin, float _size)
-        {
-            origin = _origin;
-            size = _size;
-            center = new Vector3(origin.x + (size / 2f), origin.y, origin.z + (size / 2f));
-        }
-    }
+    
 }
