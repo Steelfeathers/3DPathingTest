@@ -8,6 +8,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Serialization;
 
 namespace UnknownWorldsTest
 {
@@ -29,7 +30,8 @@ namespace UnknownWorldsTest
     }
     public class GridBuilder : MonoBehaviour
     {
-        [SerializeField] private Grid grid;
+        //private Grid grid;
+        [FormerlySerializedAs("gridData")] [SerializeField] private Grid grid;
        
         public void BuildGrid()
         {
@@ -81,8 +83,8 @@ namespace UnknownWorldsTest
             //Create the empty grid based on the bounds of the level
             int cols = Mathf.CeilToInt((maxX - minX) / cellSize);
             int rows = Mathf.CeilToInt((maxZ - minZ) / cellSize);
-
-
+            
+            //Create the grid scriptable object for storing data
             if (grid == null)
             {
                 grid = ScriptableObject.CreateInstance(typeof(Grid)) as Grid;
@@ -96,8 +98,21 @@ namespace UnknownWorldsTest
                     return;
                 }
             }
-
-            grid.Initialize(gridOrigin, cols, rows, cellSize);
+            
+            grid.Initialize(cols, rows);
+            //grid = new Grid(gridOrigin, cols, rows, cellSize);
+            
+            //Set the default value of all grid vertices. If no ground is found under that vertex, it counts as a hole in space
+            //This system is intended to be able to handle "floating island" type map with multiple interconnected walkable areas of various shapes and levels
+            //EDGE-CASE: A hole in the map that can fit within the size of 1 cell, but that will likely be readily visible to the level designer
+            Vector3[,] gridVertices =  new Vector3[cols, rows];
+            for (int i = 0; i < cols; i++)
+            {
+                for (int j = 0; j < rows; j++)
+                {
+                    gridVertices[i,j] = Vector3.negativeInfinity;
+                }
+            }
 
             //Cycle through every point on the grid and raycast downward to find the "heightmap" vertex Y position for that point
             //This allows for disconnected and strangely shaped maps, like floating islands or ramps, since we're not assuming that the ground is a flat continuous plane
@@ -113,12 +128,14 @@ namespace UnknownWorldsTest
                     var ray = new Ray(rayOrigin, Vector3.down);
                     if (Physics.Raycast(ray, out var hitData, castDist+1, maskGround))
                     {
-                        grid.AddGridVertex(i, j, hitData.point);
+                        gridVertices[i, j] = hitData.point;
+                        //grid.AddGridVertex(i, j, hitData.point);
                     }
                 }
             }
             
-            grid.CreateCellsFromVertices();
+            grid.CreateCellsFromVertices(gridVertices);
+            //grid.CreateCellsFromVertices();
             
             //Cycle through each cell on the grid and boxcast downward to see if there are any obstacles blocking that spot
             //The boxcast starts at player height above the highest point in the cell, to allow for pathing beneath arches
@@ -132,20 +149,20 @@ namespace UnknownWorldsTest
                 if (cell.CheckTooSteep(1f))
                     continue;
                 
-                Vector3 boxOrigin = new Vector3(cell.Center.x, cell.HighestPoint + castDist, cell.Center.z);
+                Vector3 boxOrigin = new Vector3(cell.Center.x, cell.MaxY + castDist, cell.Center.z);
                 
                 //Boxcast all to make sure we also hit colliders that the box starts in 
                 var hit = Physics.BoxCastAll(boxOrigin, boxHalfExtents, Vector3.down, Quaternion.identity, castDist + 1, maskObstacles, QueryTriggerInteraction.Ignore);
                 
                 if (hit.Length > 0 && hit[0].collider != null)
                 {
-                    cell.Walkable = false;
+                    cell.SetWalkable(false);
                 }
             }
             
-            //testInt += 1;
+            EditorUtility.SetDirty(grid);
             PrefabUtility.RecordPrefabInstancePropertyModifications(this);
-            PrefabUtility.RecordPrefabInstancePropertyModifications(grid);
+            //PrefabUtility.RecordPrefabInstancePropertyModifications(grid);
             EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
         }
 

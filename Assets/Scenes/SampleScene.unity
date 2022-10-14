@@ -853,6 +853,10 @@ PrefabInstance:
       propertyPath: testInt
       value: 3
       objectReference: {fileID: 0}
+    - target: {fileID: 3730682448966054592, guid: 47bea89c7e0c62c40aa7603dd2ba9f0e, type: 3}
+      propertyPath: gridData
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 3730682448966054593, guid: 47bea89c7e0c62c40aa7603dd2ba9f0e, type: 3}
       propertyPath: m_Name
       value: GridBuilder
