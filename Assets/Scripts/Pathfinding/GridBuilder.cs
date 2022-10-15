@@ -9,6 +9,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
+using Utilities;
 
 namespace UnknownWorldsTest
 {
@@ -31,22 +32,26 @@ namespace UnknownWorldsTest
     
     //---------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------
-    public class GridBuilder : MonoBehaviour
+    public class GridBuilder : SingletonComponent<GridBuilder>
     {
+        [SerializeField][Range(0f,89f)] private float maxSlopeAngle = 45f;
         private string gridFileName => $"{SceneManager.GetActiveScene().name}_pathGrid";
         private Grid grid;
+        public Grid Grid => grid;
 
         private void Start()
         {
             LoadGrid();
         }
 
+#if UNITY_EDITOR
         private void SaveGrid()
         {
             if (grid == null) return;
             Utils.SaveToJson(grid.Data, Application.dataPath + $"/Resources/LevelGrids/{gridFileName}.json");
             UnityEditor.AssetDatabase.Refresh();
         }
+#endif
 
         private void LoadGrid()
         {
@@ -54,6 +59,10 @@ namespace UnknownWorldsTest
             if (data != null)
             {
                 grid = new Grid(data);
+            }
+            else
+            {
+                Debug.LogError($"No grid exists for {SceneManager.GetActiveScene().name}! A grid must be generated in the editor before pathfinding can be used in this scene.");
             }
         }
         
@@ -135,10 +144,10 @@ namespace UnknownWorldsTest
             //Set the default value of all grid vertices. If no ground is found under that vertex, it counts as a hole in space
             //This system is intended to be able to handle "floating island" type map with multiple interconnected walkable areas of various shapes and levels
             //EDGE-CASE: A hole in the map that can fit within the size of 1 cell, but that will likely be readily visible to the level designer
-            Vector3[,] gridVertices =  new Vector3[cols, rows];
-            for (int i = 0; i < cols; i++)
+            Vector3[,] gridVertices =  new Vector3[cols+1, rows+1];
+            for (int i = 0; i <= cols; i++)
             {
-                for (int j = 0; j < rows; j++)
+                for (int j = 0; j <= rows; j++)
                 {
                     gridVertices[i,j] = Vector3.negativeInfinity;
                 }
@@ -150,9 +159,9 @@ namespace UnknownWorldsTest
             int maskGround = 1 << LayerMask.NameToLayer("Ground");
             float castDist = maxY - minY + 1;
             
-            for (int i = 0; i < cols; i++)
+            for (int i = 0; i <= cols; i++)
             {
-                for (int j = 0; j < rows; j++)
+                for (int j = 0; j <= rows; j++)
                 {
                     Vector3 rayOrigin = new Vector3(gridOrigin.x + (i * cellSize), gridOrigin.y + castDist, gridOrigin.z + (j * cellSize));
                     var ray = new Ray(rayOrigin, Vector3.down);
@@ -164,7 +173,7 @@ namespace UnknownWorldsTest
             }
 
             //Create the grid from the heightmap of vertices 
-            grid = new Grid(cols, rows, gridVertices);
+            grid = new Grid(cols, rows, cellSize, gridOrigin, gridVertices);
             
             //Cycle through each cell on the grid and boxcast downward to see if there are any obstacles blocking that spot
             //The boxcast starts at player height above the highest point in the cell, to allow for pathing beneath arches
@@ -175,7 +184,10 @@ namespace UnknownWorldsTest
             foreach (var cell in grid.GridCells)
             {
                 if (cell == null || cell.Data == null) continue;
-                if (cell.CheckTooSteep(1f))
+
+                //If the angle of the slope of this cell is too steep to walk, mark as unwalkable
+                float maxVerticalDist = Mathf.Tan(maxSlopeAngle * Mathf.Deg2Rad) * cellSize;
+                if (cell.CheckTooSteep(maxVerticalDist))
                     continue;
                 
                 Vector3 boxOrigin = new Vector3(cell.Data.Center.x, cell.Data.MaxY + castDist, cell.Data.Center.z);
@@ -215,9 +227,5 @@ namespace UnknownWorldsTest
             grid.DebugDrawGrid();
         } 
 #endif
-
-        
-        
-       
     }
 }

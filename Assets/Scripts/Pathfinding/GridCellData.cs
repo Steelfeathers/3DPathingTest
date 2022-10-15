@@ -8,6 +8,7 @@ namespace UnknownWorldsTest
     [Serializable]
     public class GridCellData
     {
+        public bool valid;
         public int xIndex;
         public int yIndex;
         public bool walkable = true;

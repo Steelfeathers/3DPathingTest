@@ -1,75 +1,169 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Utilities;
 
 namespace UnknownWorldsTest
 {
-    public class Pathfinding
+    public class Pathfinding : SingletonObject<Pathfinding>
     {
         private const int MOVE_STRAIGHT_COST = 10;
         private const int MOVE_DIAGONAL_COST = 14;
         
-        private Grid grid;
         private List<GridCell> openList;
         private List<GridCell> closedList;
 
-        public Pathfinding(Grid _grid)
-        {
-            grid = _grid;
-        }
+        private Grid grid;
 
-        /*
-        private List<PathNode> FindPath(int startX, int startY, int endX, int endY)
+        private bool GetGrid()
         {
-            GridCell startCell = grid.GetGridCell(startX, startY);
-            GridCell endCell = grid.GetGridCell(endX, endY);
+            grid = GridBuilder.Instance.Grid;
+            return grid != null;
+        }
+        
+        public List<Vector3> FindPath(Vector3 startWorldPosition, Vector3 endWorldPosition)
+        {
+            if (!GetGrid())
+            {
+                Debug.LogError($"Cannot pathfind, no grid found for scene");
+                return null;
+            }
             
+            GridCell startCell = grid.GetCellForWorldPosition(startWorldPosition);
+            GridCell endCell = grid.GetCellForWorldPosition(endWorldPosition);
+            if (startCell == null || !startCell.Data.valid || endCell == null || !endCell.Data.valid)
+                return null;
+
+            List<GridCell> path = FindPath(startCell, endCell);
+            if (path == null) 
+            {
+                return null;
+            } 
+            
+            List<Vector3> vectorPath = new List<Vector3>();
+            foreach (GridCell pathCell in path) 
+            {
+                vectorPath.Add(pathCell.Data.Center);
+            }
+            return vectorPath;
+        }
+        
+        public List<GridCell> FindPath(GridCell startCell,  GridCell endCell) 
+        {
+            if (!GetGrid())
+            {
+                Debug.LogError($"Cannot pathfind, no grid found for scene");
+                return null;
+            }
+            
+            // Invalid Path
+            if (startCell == null || endCell == null) 
+                return null;
+
             openList = new List<GridCell> { startCell };
             closedList = new List<GridCell>();
 
-            for (int x = 0; x < grid.Cols; x++)
+            for (int x = 0; x < grid.Data.cols; x++) 
             {
-                for (int y = 0; y < grid.Rows; y++)
-                {
-                    GridCell cell = grid.GetGridCell(x, y);
-                    cell.gCost = int.MaxValue;
+                for (int y = 0; y < grid.Data.rows; y++) {
+                    GridCell cell = grid.GridCells[x, y];
+                    if (cell == null) continue;
+                    cell.gCost = Int32.MaxValue;
                     cell.CalculateFCost();
                     cell.PreviousCell = null;
                 }
             }
 
             startCell.gCost = 0;
-            startCell.hCost = CalculateDistance(startX, endX, startY, endY);
+            startCell.hCost = CalculateDistanceCost(startCell, endCell);
             startCell.CalculateFCost();
-
-            while (openList.Count > 0)
+        
+            while (openList.Count > 0) 
             {
-                GridCell currentCell = GetLowestFCostCell(openList);
-               // if (currentCell == endCell)
-               //     return CalculatePath(endCell); //reached final cell
+                GridCell curCell = GetLowestFCostCell(openList);
+                if (curCell == endCell) {
+                    // Reached final node
+                    return CalculatePath(endCell);
+                }
 
-                openList.Remove(currentCell);
-                closedList.Add(currentCell);
+                openList.Remove(curCell);
+                closedList.Add(curCell);
+
+                foreach (GridCell neighborCell in GetNeighborList(curCell)) {
+                    if (closedList.Contains(neighborCell) || neighborCell == null) continue;
+                    if (!neighborCell.Data.walkable) {
+                        closedList.Add(neighborCell);
+                        continue;
+                    }
+
+                    int tentativeGCost = curCell.gCost + CalculateDistanceCost(curCell, neighborCell);
+                    if (tentativeGCost < neighborCell.gCost) {
+                        neighborCell.PreviousCell = curCell;
+                        neighborCell.gCost = tentativeGCost;
+                        neighborCell.hCost = CalculateDistanceCost(neighborCell, endCell);
+                        neighborCell.CalculateFCost();
+
+                        if (!openList.Contains(neighborCell)) {
+                            openList.Add(neighborCell);
+                        }
+                    }
+                }
             }
 
+            // Out of nodes on the openList
             return null;
         }
-        */
 
-        //private List<GridCell> GetNeighborCells(GridCell currentCell)
-        //{
-        //    List<GridCell> neighborList = new List<GridCell>();
-        //    if (currentCell.)
-        //}
+        private List<GridCell> GetNeighborList(GridCell curCell) {
+            List<GridCell> neighborList = new List<GridCell>();
+
+            int x = curCell.Data.xIndex;
+            int y = curCell.Data.yIndex;
+            int rows = grid.Data.rows;
+            int cols = grid.Data.cols;
+            
+            if (x - 1 >= 0) {
+                // Left
+                neighborList.Add(grid.GridCells[x - 1, y]);
+                // Left Down
+                if (y - 1 >= 0) neighborList.Add(grid.GridCells[x - 1, y - 1]);
+                // Left Up
+                if (y + 1 < rows) neighborList.Add(grid.GridCells[x - 1, y + 1]);
+            }
+            if (x + 1 < cols) {
+                // Right
+                neighborList.Add(grid.GridCells[x + 1, y]);
+                // Right Down
+                if (y - 1 >= 0) neighborList.Add(grid.GridCells[x + 1, y - 1]);
+                // Right Up
+                if (y + 1 < rows) neighborList.Add(grid.GridCells[x + 1, y + 1]);
+            }
+            // Down
+            if (y - 1 >= 0) neighborList.Add(grid.GridCells[x, y - 1]);
+            // Up
+            if (y + 1 < rows) neighborList.Add(grid.GridCells[x, y + 1]);
+
+            return neighborList;
+        }
+        
         private List<GridCell> CalculatePath(GridCell endCell)
         {
-            return null;
+            List<GridCell> path = new List<GridCell>();
+            path.Add(endCell);
+            GridCell currentNode = endCell;
+            while (currentNode.PreviousCell != null) {
+                path.Add(currentNode.PreviousCell);
+                currentNode = currentNode.PreviousCell;
+            }
+            path.Reverse();
+            return path;
         }
 
-        private int CalculateDistance(float ax, float ay, float bx, float by)
+        private int CalculateDistanceCost(GridCell endCell, GridCell startCell)
         {
-            int xDistance = (int)Mathf.Abs(ax - bx);
-            int yDistance = (int)Mathf.Abs(ay - by);
+            int xDistance = (int)Mathf.Abs(endCell.Data.xIndex - startCell.Data.xIndex);
+            int yDistance = (int)Mathf.Abs(endCell.Data.yIndex - startCell.Data.yIndex);
             int remaining = Mathf.Abs(xDistance - yDistance);
             return MOVE_DIAGONAL_COST * Mathf.Min(xDistance, yDistance) + MOVE_STRAIGHT_COST * remaining;
         }

@@ -12,26 +12,39 @@ namespace UnknownWorldsTest
 
         private GridCellData data;
         public GridCellData Data => data;
-
-        public GridCell(int _xIndex, int _yIndex, Vector3 _vertexLL, Vector3 _vertexUL, Vector3 _vertexUR, Vector3 _vertexLR)
-        {
-            data = new GridCellData();
-            data.xIndex = _xIndex;
-            data.yIndex = _yIndex;
-            data.walkable = true;
-            data.Vertices = new[] { _vertexLL, _vertexUL, _vertexUR, _vertexLR };
-            
-            //Calculate the center of the cell, which will be used in pathfinding
-            var dir = _vertexUR - _vertexLL;
-            var mag = Vector3.Distance(_vertexUR, _vertexLL) / 2f;
-            data.Center = (dir * mag) + _vertexLL;
-        }
         
         public GridCell(GridCellData _data)
         {
             data = _data;
         }
 
+        #region PATHFINDING
+        public GridCell PreviousCell;
+        
+        public void CalculateFCost()
+        {
+            fCost = gCost + hCost;
+        }
+        
+        #endregion
+
+#if UNITY_EDITOR
+        #region EDITOR
+        public GridCell(int _xIndex, int _yIndex, Vector3 _vertexLL, Vector3 _vertexUL, Vector3 _vertexUR, Vector3 _vertexLR)
+        {
+            data = new GridCellData();
+            data.valid = true;
+            data.xIndex = _xIndex;
+            data.yIndex = _yIndex;
+            data.walkable = true;
+            data.Vertices = new[] { _vertexLL, _vertexUL, _vertexUR, _vertexLR };
+            
+            //Calculate the center of the cell, which will be used in pathfinding
+            var dir = (_vertexUR - _vertexLL).normalized;
+            var mag = Vector3.Distance(_vertexUR, _vertexLL) / 2f;
+            data.Center = (dir * mag) + _vertexLL;
+        }
+        
         public void SetWalkable(bool canWalk)
         {
             data.walkable = canWalk;
@@ -48,17 +61,7 @@ namespace UnknownWorldsTest
 
             return false;
         }
-
-        #region PATHFINDING
-
-        public GridCell PreviousCell;
-        public void CalculateFCost()
-        {
-            fCost = gCost + hCost;
-        }
-        #endregion
-
-        #region DEBUG
+        
         public void DebugDrawCell()
         {
             if (data == null) return;
@@ -71,5 +74,6 @@ namespace UnknownWorldsTest
             Gizmos.DrawLine(verts[3], verts[0]);
         }
         #endregion
+#endif
     }
 }
