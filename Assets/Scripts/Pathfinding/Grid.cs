@@ -79,10 +79,6 @@ namespace UnknownWorldsTest
                         var gridCell = new GridCell(i, j, LL, UL, UR, LR);
                         data.gridCellDatas[j * data.cols + i] = gridCell.Data;
                     }
-                    else
-                    {
-                        Debug.Log($"Invalid cell at ({i},{j})");
-                    }
                 }
             }
         }

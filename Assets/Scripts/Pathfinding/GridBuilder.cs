@@ -41,7 +41,7 @@ namespace UnknownWorldsTest
 
         private void Start()
         {
-            LoadGrid();
+            //LoadGrid();
         }
 
 #if UNITY_EDITOR
@@ -53,7 +53,7 @@ namespace UnknownWorldsTest
         }
 #endif
 
-        private void LoadGrid()
+        public void LoadGrid()
         {
             var data = Utils.LoadTextAsset($"LevelGrids/{gridFileName}").FromJson<GridData>();
             if (data != null)
@@ -69,7 +69,7 @@ namespace UnknownWorldsTest
         private void Update()
         {
 #if UNITY_EDITOR
-            if (Input.GetKeyDown(KeyCode.G))
+            if (GameRoot.Instance.ShowDebug)
             {
                 if (grid != null)
                     grid.DebugDrawGrid();

@@ -97,20 +97,22 @@ namespace UnknownWorldsTest
             }
             
 #if UNITY_EDITOR
-            DebugDrawPath(Time.deltaTime);
+            if (GameRoot.Instance.ShowDebug)
+                DebugDrawPath(Time.deltaTime);
 #endif
-
         }
 
         private void DebugDrawPath(float dur)
         {
+#if UNITY_EDITOR
             if (movementPathNodes == null) return;
             Vector3 prevPos = movementPathNodes[0];
             foreach (var pos in movementPathNodes)
             {
-                Debug.DrawLine(prevPos, pos, Color.green, dur);
+                Debug.DrawLine(prevPos, pos, Color.blue, dur);
                 prevPos = pos;
             }
+#endif
         }
     }
 }
