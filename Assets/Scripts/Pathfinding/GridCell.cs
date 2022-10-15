@@ -65,8 +65,7 @@ namespace UnknownWorldsTest
         public void DebugDrawCell()
         {
             if (data == null) return;
-            //Gizmos.color = data.walkable ? Color.white : Color.red;
-
+            
             var verts = data.Vertices;
             Debug.DrawLine(verts[0], verts[1], Color.white, Time.deltaTime, true);
             Debug.DrawLine(verts[1], verts[2], Color.white, Time.deltaTime, true);
@@ -78,10 +77,6 @@ namespace UnknownWorldsTest
                 Debug.DrawLine(verts[0], verts[2], Color.red, Time.deltaTime, true);
                 Debug.DrawLine(verts[1], verts[3], Color.red, Time.deltaTime, true);
             }
-            //Gizmos.DrawLine(verts[0], verts[1]);
-            //Gizmos.DrawLine(verts[1], verts[2]);
-            //Gizmos.DrawLine(verts[2], verts[3]);
-            //Gizmos.DrawLine(verts[3], verts[0]);
         }
         #endregion
 #endif

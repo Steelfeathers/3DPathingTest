@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace UnknownWorldsTest
 {
+    //Save out the data in a format compatible with the Json serializer
     [Serializable]
     public class GridCellData
     {

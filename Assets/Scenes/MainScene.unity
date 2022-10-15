@@ -1172,7 +1172,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cameraPanSpeed: 5
-  cameraFollowBorderPerc: 0.25
+  cameraFollowBorderPerc: 0.35
 --- !u!1 &1110047453
 GameObject:
   m_ObjectHideFlags: 0

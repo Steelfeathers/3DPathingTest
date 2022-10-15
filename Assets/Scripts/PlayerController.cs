@@ -27,7 +27,7 @@ namespace UnknownWorldsTest
         {
             MovePlayer();
             
-            //When the player clicks, raycast at towards the mouse point to see if we're clicking on ground. If so, find a path to the target point and start moving towards it.
+            //When the player clicks, raycast towards the mouse point to see if we're clicking on ground. If so, find a path to the target point and start moving towards it.
             //If the player clicks on a different point, immediately abandon the previous path and start moving towards the new point
             if (Input.GetMouseButtonDown(0))
             {

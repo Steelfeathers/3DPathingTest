@@ -38,11 +38,7 @@ namespace UnknownWorldsTest
         private string gridFileName => $"{SceneManager.GetActiveScene().name}_pathGrid";
         private Grid grid;
         public Grid Grid => grid;
-
-        private void Start()
-        {
-            //LoadGrid();
-        }
+        
 
 #if UNITY_EDITOR
         private void SaveGrid()
@@ -62,7 +58,8 @@ namespace UnknownWorldsTest
             }
             else
             {
-                Debug.LogError($"No grid exists for {SceneManager.GetActiveScene().name}! A grid must be generated in the editor before pathfinding can be used in this scene.");
+                Debug.LogError($"No grid exists for {SceneManager.GetActiveScene().name}! A grid must be generated in the editor before pathfinding can be used in this scene. " +
+                               $"TIP: Make sure only 1 scene is loaded in the scene view when trying to generate the grid");
             }
         }
         
@@ -79,10 +76,11 @@ namespace UnknownWorldsTest
 
 #if UNITY_EDITOR
         /// <summary>
-        /// Pre-build the pathing grid for the current scene and save it to a json file to quick loading at runtime.
+        /// Pre-build the pathing grid for the current scene and save it to a json file for quick loading at runtime.
         /// Requirements:
         ///     - The scene MUST have a collider marked as "Player" to serve as a reference for how big each cell on the pathing grid needs to be
         ///     - The scene MUST contain at least 1 collider marked as "Ground" to serve as a walkable surface
+        ///     - The scene MUST be isolated in the editor (no other scenes open) in order for the BuildGrid function to work!
         /// Assumptions:
         ///     - The environment is static at runtime - no colliders will be added or removed from the scene while running
         ///     - The environment does not have overlapping vertical levels, ex. a tunnel that the player can walk both over and through, or a house with 2 stories
@@ -155,7 +153,7 @@ namespace UnknownWorldsTest
 
             //Cycle through every point on the grid and raycast downward to find the "heightmap" vertex Y position for that point
             //This allows for disconnected and strangely shaped maps, like floating islands or ramps, since we're not assuming that the ground is a flat continuous plane
-            //NOTE: This does NOT allow for multi-layered map architecture, such as a tunnel that you can walk both over and through
+            //NOTE: This does NOT allow for multi-layered map architecture
             int maskGround = 1 << LayerMask.NameToLayer("Ground");
             float castDist = maxY - minY + 1;
             

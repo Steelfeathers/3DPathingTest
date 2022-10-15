@@ -6,8 +6,13 @@ using Utilities;
 
 namespace UnknownWorldsTest
 {
+    /// <summary>
+    /// Implements the A* pathfinding algorithm for maximum runtime efficiency
+    /// Video tutorials covering the algorithm were referenced in creating this code
+    /// </summary>
     public class Pathfinding : SingletonObject<Pathfinding>
     {
+        //The normalized distance to an adjacent cell is 1.0, while the normalized distance to a diagonal cell is 1.4. Multiplying by 10 allows working in ints.
         private const int MOVE_STRAIGHT_COST = 10;
         private const int MOVE_DIAGONAL_COST = 14;
         
@@ -22,6 +27,12 @@ namespace UnknownWorldsTest
             return grid != null;
         }
         
+        /// <summary>
+        /// Given a start and end position, find a path made up of Vector3 nodes that trace out the optimal path, avoiding any obstacles
+        /// </summary>
+        /// <param name="startWorldPosition"></param>
+        /// <param name="endWorldPosition"></param>
+        /// <returns></returns>
         public List<Vector3> FindPath(Vector3 startWorldPosition, Vector3 endWorldPosition)
         {
             if (!GetGrid())
@@ -41,6 +52,7 @@ namespace UnknownWorldsTest
                 return null;
             } 
             
+            //Turn the list of path cells into a list of Vector3 points centered on those cells
             List<Vector3> vectorPath = new List<Vector3>();
             foreach (GridCell pathCell in path) 
             {
@@ -61,6 +73,7 @@ namespace UnknownWorldsTest
             if (startCell == null || endCell == null) 
                 return null;
 
+            //OpenList contains cells queued to be searched; closedList contains cells already searched
             openList = new List<GridCell> { startCell };
             closedList = new List<GridCell>();
 
@@ -97,6 +110,7 @@ namespace UnknownWorldsTest
                         continue;
                     }
 
+                    //For each neighboring cell, see if we're getting closer to the target by calculating the no-obstacle distance to the end cell
                     int tentativeGCost = curCell.gCost + CalculateDistanceCost(curCell, neighborCell);
                     if (tentativeGCost < neighborCell.gCost) {
                         neighborCell.PreviousCell = curCell;

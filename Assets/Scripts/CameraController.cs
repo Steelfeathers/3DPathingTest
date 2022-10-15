@@ -21,9 +21,9 @@ namespace UnknownWorldsTest
             cameraFollowX = Screen.width * cameraFollowBorderPerc;
             cameraFollowY = Screen.height * cameraFollowBorderPerc;
             screenBorders = new Vector3(Screen.width / 2f, Screen.height / 2f);
-            //Debug.Log($"{cameraFollowX}, {cameraFollowY}");
         }
 
+        //Make the camera pan around the scene when the player moves the mouse towards the edge of the screen
         void Update()
         {
             var mousePos = Input.mousePosition;
