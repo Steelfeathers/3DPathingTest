@@ -2,10 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Palmmedia.ReportGenerator.Core.Parser.Analysis;
 using Unity.VisualScripting;
-using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
@@ -13,23 +10,6 @@ using Utilities;
 
 namespace UnknownWorldsTest
 {
-    [CustomEditor(typeof(GridBuilder))]
-    class GridBuilderEditor : Editor {
-
-        public override void OnInspectorGUI()
-        {
-            serializedObject.Update();
-            
-            DrawDefaultInspector();
-            if (GUILayout.Button("Build Pathing Grid"))
-            {
-                (target as GridBuilder).BuildGrid();
-            }
-            
-            serializedObject.ApplyModifiedProperties();
-        }
-    }
-    
     //---------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------
     public class GridBuilder : SingletonComponent<GridBuilder>

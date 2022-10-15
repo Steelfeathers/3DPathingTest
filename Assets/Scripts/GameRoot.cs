@@ -24,6 +24,15 @@ namespace UnknownWorldsTest
             GameOverlayDialog.SetActive(false);
         }
 
+        private void Update()
+        {
+            if (Input.GetKeyDown(KeyCode.Escape))
+                Utils.QuitApplication();
+#if !UNITY_EDITOR
+            
+#endif
+        }
+
         public void OnStartClicked()
         {
             MainMenuDialog.SetActive(false);
