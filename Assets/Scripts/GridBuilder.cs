@@ -28,11 +28,60 @@ namespace UnknownWorldsTest
             serializedObject.ApplyModifiedProperties();
         }
     }
+    
+    //---------------------------------------------------------------------------------
+    //---------------------------------------------------------------------------------
     public class GridBuilder : MonoBehaviour
     {
-        //private Grid grid;
-        [FormerlySerializedAs("gridData")] [SerializeField] private Grid grid;
-       
+        private string gridFileName => $"{SceneManager.GetActiveScene().name}_pathGrid";
+        private Grid grid;
+
+        private void Start()
+        {
+            LoadGrid();
+        }
+
+        private void SaveGrid()
+        {
+            if (grid == null) return;
+            Utils.SaveToJson(grid.Data, Application.dataPath + $"/Resources/LevelGrids/{gridFileName}.json");
+            UnityEditor.AssetDatabase.Refresh();
+        }
+
+        private void LoadGrid()
+        {
+            var data = Utils.LoadTextAsset($"LevelGrids/{gridFileName}").FromJson<GridData>();
+            if (data != null)
+            {
+                grid = new Grid(data);
+            }
+        }
+        
+        private void Update()
+        {
+#if UNITY_EDITOR
+            if (Input.GetKeyDown(KeyCode.G))
+            {
+                if (grid != null)
+                    grid.DebugDrawGrid();
+            }
+#endif
+        }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// Pre-build the pathing grid for the current scene and save it to a json file to quick loading at runtime.
+        /// Requirements:
+        ///     - The scene MUST have a collider marked as "Player" to serve as a reference for how big each cell on the pathing grid needs to be
+        ///     - The scene MUST contain at least 1 collider marked as "Ground" to serve as a walkable surface
+        /// Assumptions:
+        ///     - The environment is static at runtime - no colliders will be added or removed from the scene while running
+        ///     - The environment does not have overlapping vertical levels, ex. a tunnel that the player can walk both over and through, or a house with 2 stories
+        /// Supports:
+        ///     - Arches that the player can pass under
+        ///     - Ramps of varying steepness - the maximum walkable steepness can be configured in the GridBuilder
+        ///     - Multiple disconnected and/or non-rectangular walkable areas of varying heights (so long as they don't overlap vertically)
+        /// </summary>
         public void BuildGrid()
         {
             //First check to see if we have a reference player prefab in the scene
@@ -51,9 +100,8 @@ namespace UnknownWorldsTest
                 return;
             }
 
-            //Get the maximum bounds of the scene, as defined by the furthest extent of all colliders in the scene
+            //Get the maximum bounds of the scene, as defined by the furthest extent of all ground colliders in the scene
             //This will be used to determine the bounds for raycasting against the ground to determine walkability
-            //List<Collider> sceneColliders = GetAllCollidersInScene();
             float minX = Single.PositiveInfinity, minY = Single.PositiveInfinity, minZ = Single.PositiveInfinity;
             float maxX = Single.NegativeInfinity, maxY = Single.NegativeInfinity, maxZ = Single.NegativeInfinity;
             foreach (var col in gndColliders)
@@ -80,28 +128,10 @@ namespace UnknownWorldsTest
             float cellSize = playerColliders[0].bounds.extents.x * 2f;
             float cellHeight = playerColliders[0].bounds.extents.y * 2f;
 
-            //Create the empty grid based on the bounds of the level
+            //Determine the number of rows and columns needed for a rectangluar grid to cover the whole area
             int cols = Mathf.CeilToInt((maxX - minX) / cellSize);
             int rows = Mathf.CeilToInt((maxZ - minZ) / cellSize);
-            
-            //Create the grid scriptable object for storing data
-            if (grid == null)
-            {
-                grid = ScriptableObject.CreateInstance(typeof(Grid)) as Grid;
-                if (grid != null)
-                {
-                    AssetDatabase.CreateAsset(grid, $"Assets/Grids/{SceneManager.GetActiveScene().name}_pathingGrid.asset");
-                }
-                else
-                {
-                    Debug.LogError("Failed to create grid!");
-                    return;
-                }
-            }
-            
-            grid.Initialize(cols, rows);
-            //grid = new Grid(gridOrigin, cols, rows, cellSize);
-            
+
             //Set the default value of all grid vertices. If no ground is found under that vertex, it counts as a hole in space
             //This system is intended to be able to handle "floating island" type map with multiple interconnected walkable areas of various shapes and levels
             //EDGE-CASE: A hole in the map that can fit within the size of 1 cell, but that will likely be readily visible to the level designer
@@ -129,13 +159,12 @@ namespace UnknownWorldsTest
                     if (Physics.Raycast(ray, out var hitData, castDist+1, maskGround))
                     {
                         gridVertices[i, j] = hitData.point;
-                        //grid.AddGridVertex(i, j, hitData.point);
                     }
                 }
             }
-            
-            grid.CreateCellsFromVertices(gridVertices);
-            //grid.CreateCellsFromVertices();
+
+            //Create the grid from the heightmap of vertices 
+            grid = new Grid(cols, rows, gridVertices);
             
             //Cycle through each cell on the grid and boxcast downward to see if there are any obstacles blocking that spot
             //The boxcast starts at player height above the highest point in the cell, to allow for pathing beneath arches
@@ -145,11 +174,11 @@ namespace UnknownWorldsTest
             
             foreach (var cell in grid.GridCells)
             {
-                if (cell == null) continue;
+                if (cell == null || cell.Data == null) continue;
                 if (cell.CheckTooSteep(1f))
                     continue;
                 
-                Vector3 boxOrigin = new Vector3(cell.Center.x, cell.MaxY + castDist, cell.Center.z);
+                Vector3 boxOrigin = new Vector3(cell.Data.Center.x, cell.Data.MaxY + castDist, cell.Data.Center.z);
                 
                 //Boxcast all to make sure we also hit colliders that the box starts in 
                 var hit = Physics.BoxCastAll(boxOrigin, boxHalfExtents, Vector3.down, Quaternion.identity, castDist + 1, maskObstacles, QueryTriggerInteraction.Ignore);
@@ -160,31 +189,7 @@ namespace UnknownWorldsTest
                 }
             }
             
-            EditorUtility.SetDirty(grid);
-            PrefabUtility.RecordPrefabInstancePropertyModifications(this);
-            //PrefabUtility.RecordPrefabInstancePropertyModifications(grid);
-            EditorSceneManager.SaveScene(SceneManager.GetActiveScene());
-        }
-
-        private void OnDrawGizmosSelected()
-        {
-            if (grid == null) return;
-           // Gizmos.color = Color.magenta;
-            //Gizmos.DrawLine(grid.Origin, new Vector3(gridOrigin.x, gridOrigin.y, grid.Origin.z + ));
-            //Debug.DrawLine(gridOrigin, new Vector3(minX, minY, maxZ), boundingBoxColor, 60f);
-            //Debug.DrawLine(gridOrigin, new Vector3(minX, maxY, minZ), boundingBoxColor, 60f);
-            //Debug.DrawLine(gridOrigin, new Vector3(maxX, minY, minZ), boundingBoxColor, 60f);
-            grid.DebugDrawGrid();
-        } 
-
-        private void Update()
-        {
-            #if UNITY_EDITOR
-            if (Input.GetKeyDown(KeyCode.G))
-            {
-                grid.DebugDrawGrid();
-            }
-            #endif
+            SaveGrid();
         }
         
         private List<Collider> GetAllCollidersInScene(int targetLayer=-1)
@@ -199,5 +204,20 @@ namespace UnknownWorldsTest
 
             return colliders;
         }
+        
+        private void OnDrawGizmosSelected()
+        {
+            if (grid == null)
+            {
+                LoadGrid();
+                if (grid == null) return;
+            }
+            grid.DebugDrawGrid();
+        } 
+#endif
+
+        
+        
+       
     }
 }

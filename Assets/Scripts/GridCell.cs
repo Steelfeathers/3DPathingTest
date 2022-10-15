@@ -4,80 +4,43 @@ using UnityEngine;
 
 namespace UnknownWorldsTest
 {
-    public class GridCell : ScriptableObject
+    public class GridCell
     {
-        [SerializeField] private bool walkable = true;
-        
-        [SerializeField] private float centerX;
-        [SerializeField] private float centerY;
-        [SerializeField] private float centerZ;
+        public int gCost;  //Cost to reach this node from the start node
+        public int hCost;  //Cost to reach the end node from this node, assuming no obstacles
+        public int fCost;  //G + H, used for filtering 
 
-        [SerializeField] private float vertexLL_X;
-        [SerializeField] private float vertexLL_Y;
-        [SerializeField] private float vertexLL_Z;
-        
-        [SerializeField] private float vertexUL_X;
-        [SerializeField] private float vertexUL_Y;
-        [SerializeField] private float vertexUL_Z;
-        
-        [SerializeField] private float vertexUR_X;
-        [SerializeField] private float vertexUR_Y;
-        [SerializeField] private float vertexUR_Z;
-        
-        [SerializeField] private float vertexLR_X;
-        [SerializeField] private float vertexLR_Y;
-        [SerializeField] private float vertexLR_Z;
+        private GridCellData data;
+        public GridCellData Data => data;
 
-        public bool Walkable => walkable;
-        public Vector3 Center => new Vector3(centerX, centerY, centerZ);
-        public Vector3[] Vertices => new Vector3[]
+        public GridCell(int _xIndex, int _yIndex, Vector3 _vertexLL, Vector3 _vertexUL, Vector3 _vertexUR, Vector3 _vertexLR)
         {
-            new Vector3(vertexLL_X, vertexLL_Y, vertexLL_Z),
-            new Vector3(vertexUL_X, vertexUL_Y, vertexUL_Z),
-            new Vector3(vertexUR_X, vertexUR_Y, vertexUR_Z),
-            new Vector3(vertexLR_X, vertexLR_Y, vertexLR_Z)
-        };
-        public Vector3 Origin => Vertices[0];
-        public float MinY => Mathf.Min(vertexLL_Y, vertexUL_Y, vertexUR_Y, vertexLR_Y);
-        public float MaxY => Mathf.Max(vertexLL_Y, vertexUL_Y, vertexUR_Y, vertexLR_Y);
-
-        public void Initialize(Vector3 _vertexLL, Vector3 _vertexUL, Vector3 _vertexUR, Vector3 _vertexLR)
-        {
-            vertexLL_X = _vertexLL.x;
-            vertexLL_Y = _vertexLL.y;
-            vertexLL_Z = _vertexLL.z;
-            
-            vertexUL_X = _vertexUL.x;
-            vertexUL_Y = _vertexUL.y;
-            vertexUL_Z = _vertexUL.z;
-            
-            vertexUR_X = _vertexUR.x;
-            vertexUR_Y = _vertexUR.y;
-            vertexUR_Z = _vertexUR.z;
-            
-            vertexLR_X = _vertexLR.x;
-            vertexLR_Y = _vertexLR.y;
-            vertexLR_Z = _vertexLR.z;
+            data = new GridCellData();
+            data.xIndex = _xIndex;
+            data.yIndex = _yIndex;
+            data.walkable = true;
+            data.Vertices = new[] { _vertexLL, _vertexUL, _vertexUR, _vertexLR };
             
             //Calculate the center of the cell, which will be used in pathfinding
-            var verts = Vertices;
-            var dir = verts[2] - verts[0];
-            var mag = Vector3.Distance(verts[2], verts[0]) / 2f;
-            var centerPt = (dir * mag) + verts[0];
-            centerX = centerPt.x;
-            centerY = centerPt.y;
-            centerZ = centerPt.z;
+            var dir = _vertexUR - _vertexLL;
+            var mag = Vector3.Distance(_vertexUR, _vertexLL) / 2f;
+            data.Center = (dir * mag) + _vertexLL;
+        }
+        
+        public GridCell(GridCellData _data)
+        {
+            data = _data;
         }
 
         public void SetWalkable(bool canWalk)
         {
-            walkable = canWalk;
+            data.walkable = canWalk;
         }
         
         //Calculate if the vertical slope of the cell is too steep to be walkable
         public bool CheckTooSteep(float maxVerticalDistance)
         {
-            if (MaxY - MinY > maxVerticalDistance)
+            if (data.MaxY - data.MinY > maxVerticalDistance)
             {
                 SetWalkable(false);
                 return true;
@@ -86,15 +49,27 @@ namespace UnknownWorldsTest
             return false;
         }
 
+        #region PATHFINDING
+
+        public GridCell PreviousCell;
+        public void CalculateFCost()
+        {
+            fCost = gCost + hCost;
+        }
+        #endregion
+
+        #region DEBUG
         public void DebugDrawCell()
         {
-            Gizmos.color = Walkable ? Color.white : Color.red;
+            if (data == null) return;
+            Gizmos.color = data.walkable ? Color.white : Color.red;
 
-            var verts = Vertices;
+            var verts = data.Vertices;
             Gizmos.DrawLine(verts[0], verts[1]);
             Gizmos.DrawLine(verts[1], verts[2]);
             Gizmos.DrawLine(verts[2], verts[3]);
             Gizmos.DrawLine(verts[3], verts[0]);
         }
+        #endregion
     }
 }
